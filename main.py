@@ -44,8 +44,8 @@ def run_scout_agent(request: ScoutRequest) -> ScoutResponse:
 
     raw_search_results = search_tool.run(search_query)
 
-    # 【修改点 3】：使用 Gemini 1.5 Flash 大模型 (速度快，完全胜任信息提取)
-llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.1)
+# 【修改点 3】：使用 Gemini 2.5 Flash 大模型 (速度快，完全胜任信息提取)
+    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.1)
     structured_llm = llm.with_structured_output(ScoutResponse)
 
     prompt = ChatPromptTemplate.from_messages([
