@@ -1,0 +1,7 @@
+.env
+.venv/
+agent1_scout/.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.DS_Store

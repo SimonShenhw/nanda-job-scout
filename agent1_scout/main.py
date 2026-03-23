@@ -3,9 +3,12 @@ import asyncio  # [ZH] 引入 Python 原生的异步等待库 / [EN] Import Pyth
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from typing import List
+from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_community.utilities import SerpAPIWrapper
 from langchain_core.prompts import ChatPromptTemplate
+
+load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 # ==========================================
 # 1. 定义数据结构 (A2A 通信协议)
