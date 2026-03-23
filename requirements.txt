@@ -1,7 +1,0 @@
-fastapi
-uvicorn
-pydantic
-langchain-core
-langchain-google-genai
-langchain-community
-google-search-results
