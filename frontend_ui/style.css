@@ -1,0 +1,220 @@
+/* ============================================
+   Job Scout AI — Professional Streamlit Theme
+   ============================================ */
+
+/* ---------- Import Google Font ---------- */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+/* ---------- Global ---------- */
+html, body, [class*="css"] {
+    font-family: 'Inter', sans-serif;
+}
+
+/* ---------- Sidebar ---------- */
+[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #1E1E2E 0%, #2D2B55 100%);
+    padding-top: 1rem;
+}
+
+[data-testid="stSidebar"] * {
+    color: #E0E0E0 !important;
+}
+
+[data-testid="stSidebar"] .stTextInput label,
+[data-testid="stSidebar"] .stSlider label,
+[data-testid="stSidebar"] .stFileUploader label {
+    color: #B0B0CC !important;
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+[data-testid="stSidebar"] .stTextInput input {
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    color: #1E1E2E !important;
+    padding: 0.6rem 0.8rem;
+}
+
+[data-testid="stSidebar"] .stTextInput input::placeholder {
+    color: #9090A0 !important;
+}
+
+[data-testid="stSidebar"] .stTextInput input:focus {
+    border-color: #6C63FF;
+    box-shadow: 0 0 0 2px rgba(108, 99, 255, 0.25);
+}
+
+/* ---------- Sidebar Buttons ---------- */
+[data-testid="stSidebar"] .stButton > button {
+    width: 100%;
+    border-radius: 10px;
+    padding: 0.65rem 1rem;
+    font-weight: 600;
+    font-size: 0.95rem;
+    letter-spacing: 0.02em;
+    transition: all 0.2s ease;
+}
+
+[data-testid="stSidebar"] .stButton > button[kind="primary"] {
+    background: linear-gradient(135deg, #6C63FF, #8B5CF6);
+    color: white !important;
+    border: none;
+}
+
+[data-testid="stSidebar"] .stButton > button[kind="primary"]:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(108, 99, 255, 0.4);
+}
+
+/* ---------- Main Content Area ---------- */
+.main .block-container {
+    padding: 2rem 2.5rem;
+    max-width: 1100px;
+}
+
+/* ---------- Headers ---------- */
+h1 {
+    font-weight: 700 !important;
+    font-size: 1.8rem !important;
+    color: #1E1E2E !important;
+    margin-bottom: 0.3rem !important;
+}
+
+h2 {
+    font-weight: 600 !important;
+    color: #2D2B55 !important;
+    font-size: 1.3rem !important;
+    border-bottom: 2px solid #6C63FF;
+    padding-bottom: 0.4rem;
+    margin-top: 1.5rem !important;
+}
+
+h3 {
+    font-weight: 600 !important;
+    color: #444 !important;
+    font-size: 1.1rem !important;
+}
+
+/* ---------- Data Table ---------- */
+[data-testid="stDataFrame"] {
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+/* ---------- Skill Badges (via markdown) ---------- */
+.skill-badge {
+    display: inline-block;
+    background: #EEF2FF;
+    color: #4338CA;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    margin: 2px 3px;
+}
+
+/* ---------- Chat Messages ---------- */
+[data-testid="stChatMessage"] {
+    border-radius: 12px;
+    padding: 1rem 1.2rem;
+    margin-bottom: 0.8rem;
+    animation: fadeIn 0.3s ease;
+}
+
+[data-testid="stChatMessage"][data-testid*="assistant"] {
+    background: #F0EDFF;
+    border-left: 3px solid #6C63FF;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- Chat Input ---------- */
+[data-testid="stChatInput"] textarea {
+    border-radius: 12px !important;
+    border: 2px solid #E5E7EB !important;
+    padding: 0.8rem 1rem !important;
+    font-size: 0.95rem;
+}
+
+[data-testid="stChatInput"] textarea:focus {
+    border-color: #6C63FF !important;
+    box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.15) !important;
+}
+
+/* ---------- Status Messages ---------- */
+[data-testid="stAlert"] {
+    border-radius: 10px;
+    font-size: 0.9rem;
+}
+
+/* ---------- Selectbox ---------- */
+[data-testid="stSelectbox"] > div > div {
+    border-radius: 8px;
+}
+
+/* ---------- Dividers ---------- */
+hr {
+    border: none;
+    height: 1px;
+    background: linear-gradient(to right, transparent, #D1D5DB, transparent);
+    margin: 1.5rem 0;
+}
+
+/* ---------- File Uploader ---------- */
+[data-testid="stFileUploader"] {
+    border-radius: 10px;
+}
+
+[data-testid="stFileUploader"] section {
+    border: 2px dashed rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    padding: 1rem;
+}
+
+/* ---------- Metrics / Stats Row ---------- */
+[data-testid="stMetric"] {
+    background: white;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    padding: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+[data-testid="stMetric"] label {
+    color: #6B7280 !important;
+    font-size: 0.8rem !important;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+[data-testid="stMetric"] [data-testid="stMetricValue"] {
+    font-weight: 700 !important;
+    color: #1E1E2E !important;
+}
+
+/* ---------- Spinner ---------- */
+[data-testid="stSpinner"] {
+    color: #6C63FF;
+}
+
+/* ---------- Scrollbar ---------- */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #C4B5FD;
+    border-radius: 3px;
+}
