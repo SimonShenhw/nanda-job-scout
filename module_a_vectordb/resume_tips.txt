@@ -1,0 +1,4 @@
+Tip 1: The STAR method is crucial for behavioral interviews. Always frame your answers with Situation, Task, Action, and Result.
+Tip 2: For AI Engineering roles, strongly emphasize your experience with Agentic AI, LLMs (like GPT-4 or Claude 3.5 Sonnet), and Vector Databases (such as FAISS or ChromaDB).
+Tip 3: When discussing deployment, mention your hands-on experience using Docker containers and cloud platforms like Linode to host microservices and FastAPI endpoints.
+Tip 4: Keep the resume concise. Use bullet points starting with strong action verbs like "Architected," "Deployed," and "Integrated."
