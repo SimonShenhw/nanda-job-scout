@@ -24,6 +24,8 @@ class ScoutRequest(BaseModel):
 class JobJD(BaseModel):
     company: str = Field(description="公司名称 / Company name")
     job_title: str = Field(description="岗位名称 / Job title")
+    # 【🔥 优化点 4：新增薪资提取字段 / Optimization 4: Added salary field】
+    estimated_salary: str = Field(description="预计薪资 (如 $40/hr, $80k-$100k, 或 'Not Specified') / Estimated salary or 'Not Specified'") 
     core_skills: List[str] = Field(description="核心技能要求 (如 Python, SQL) / Core skill requirements (e.g., Python, SQL)")
     summary: str = Field(description="一句话总结职责 / A one-sentence summary of responsibilities")
     apply_link: str = Field(description="申请链接或来源 / Application link or original source")
@@ -39,7 +41,7 @@ class ScoutResponse(BaseModel):
 # ==========================================
 
 # 【🔥 优化点 2：真正的异步协程 / Optimization 2: True Asynchronous Coroutines】
-# [ZH] 使用 async def 防止阻塞 FastAPI 服务器，极大提升高并发性能。
+#[ZH] 使用 async def 防止阻塞 FastAPI 服务器，极大提升高并发性能。
 # [EN] Using async def prevents blocking the FastAPI server, greatly improving high-concurrency performance.
 async def run_scout_agent(request: ScoutRequest) -> ScoutResponse:
     
@@ -52,19 +54,45 @@ async def run_scout_agent(request: ScoutRequest) -> ScoutResponse:
     print(f"Agent is executing async search task: {search_query}...")
 
     try:
-        # [ZH] 使用异步 .arun() / [EN] Use asynchronous .arun()
-        raw_search_results = await search_tool.arun(search_query)
+        # 【🔥 终极优化：获取带链接的完整数据，拒绝信息丢失！ / Ultimate Optimization: Fetch full data with links!】
+        # [ZH] 使用 .aresults() 拿到完整的原始字典数据，而不是 .arun() 那个丢了链接的阉割版字符串。
+        # [EN] Use .aresults() to get the full raw dictionary instead of the stripped string from .arun().
+        raw_dict = await search_tool.aresults(search_query)
+        
+        # [ZH] 手动拼装，确保把 Title(含公司名) 和 Link(真实链接) 喂给大模型
+        # [EN] Manually assemble to ensure Title and Link are fed into the LLM
+        formatted_results =[]
+        organic_results = raw_dict.get("organic_results", [])
+        
+        # [ZH] 多拿几条备选，防止有些不是真正的招聘贴 / [EN] Fetch a few extra candidates
+        for res in organic_results[:request.num_results + 5]: 
+            title = res.get("title", "No Title")
+            snippet = res.get("snippet", "No Snippet")
+            link = res.get("link", "Not Available")
+            
+            # [ZH] 组合成大模型极易阅读的格式 / [EN] Combine into a highly readable format for LLM
+            formatted_results.append(f"Title: {title}\nSnippet: {snippet}\nLink: {link}")
+            
+        raw_search_results = "\n\n---\n\n".join(formatted_results)
+        
     except Exception as e:
         raise Exception(f"[ZH] SerpAPI 调用失败 / [EN] SerpAPI call failed: {str(e)}")
 
-    # [ZH] 2. 初始化大模型大脑 (2.5版本) / [EN] 2. Initialize LLM Brain (v2.5)
+    # [ZH] 2. 初始化大模型大脑 (2.5版本) /[EN] 2. Initialize LLM Brain (v2.5)
     llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.1)
     structured_llm = llm.with_structured_output(ScoutResponse)
 
-    # [ZH] 3. 构造英文 Prompt (提升输出稳定性) /[EN] 3. Construct English Prompt (improves output stability)
+    #[ZH] 3. 构造英文 Prompt (加入薪资提取逻辑) /[EN] 3. Construct English Prompt (Include salary extraction)
     prompt = ChatPromptTemplate.from_messages([
-        ("system", "You are a professional AI Job Scout Agent. Your task is to extract structured internship job information from messy search results. If any info is missing, fill in 'Not Available'."),
-        ("human", "Please extract information for up to {num} jobs from the following raw content scraped by SerpAPI.\n\nRaw Content:\n{raw_data}")
+        ("system", 
+         "You are a professional AI Job Scout. Extract internship info from the raw data. "
+         "RULES:\n"
+         "1. If 'company' is missing from the title, deduce it from the domain name in the Link.\n"
+         "2. If 'core_skills' are missing, smartly infer 2-3 standard skills based on the job_title (e.g., Python, SQL for Data Science).\n"
+         "3. For 'apply_link', ALWAYS strictly use the URL provided in the 'Link' field. Never use 'Not Available' if a link exists.\n"
+         "4. Extract 'estimated_salary' if it appears in the snippet (e.g., '$40/hr', '$100k'). If completely absent, output 'Not Specified'." # 【🔥 强制抓取薪资指令】
+        ),
+        ("human", "Extract information for up to {num} jobs from the following scraped data.\n\nRaw Content:\n{raw_data}")
     ])
 
     chain = prompt | structured_llm
@@ -99,7 +127,7 @@ async def run_scout_agent(request: ScoutRequest) -> ScoutResponse:
 app = FastAPI(
     title="Job Scout Agent API",
     description="MIT NANDA Sandbox Project - Group X. Industry-grade Agent API supporting A2A communication, high concurrency, and fault tolerance.",
-    version="2.0.0"
+    version="2.1.0" # 【版本号升到 2.1.0】
 )
 
 @app.post("/api/v1/scout", response_model=ScoutResponse, tags=["Scout Agent"])
@@ -113,5 +141,5 @@ async def api_scout_jobs(request: ScoutRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    # [ZH] 必须绑定 0.0.0.0 才能对外网提供服务 / [EN] Must bind to 0.0.0.0 to expose API to the public internet
+    #[ZH] 必须绑定 0.0.0.0 才能对外网提供服务 / [EN] Must bind to 0.0.0.0 to expose API to the public internet
     uvicorn.run(app, host="0.0.0.0", port=8080)
