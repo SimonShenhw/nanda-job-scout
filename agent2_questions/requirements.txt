@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # ── Web framework ──────────────────────────────────────────
 fastapi>=0.111.0
 uvicorn[standard]>=0.29.0
@@ -14,15 +13,3 @@ langchain-google-genai>=1.0.0  # ChatGoogleGenerativeAI
 
 # ── Data validation ────────────────────────────────────────
 pydantic>=2.7.0
-
-# ── Async support (stdlib in Python 3.7+, listed for clarity)
-# asyncio — no install needed
-=======
-fastapi
-uvicorn
-pydantic
-langchain-core
-langchain-google-genai
-langchain-community
-google-search-results
->>>>>>> 090a1854ab5c9697bc0a00d72f5dc5217d4f6509

@@ -1,0 +1,198 @@
+HOW TO REGISTER AN AGENT FACT CARD TO THE NANDA INDEX
+=====================================================
+
+This guide walks you through registering your AI agents with the NANDA Index
+so they become discoverable on the global NANDA network (the "Internet of
+AI Agents").
+
+
+BACKGROUND
+----------
+
+Project NANDA (Networked AI Agents in Decentralized Architecture) is an MIT
+project building infrastructure for an open agentic web where AI agents can
+discover each other, verify capabilities, and coordinate tasks.
+
+The NANDA Index is the central registry service. When you register your agent,
+other agents on the network can find it by searching for capabilities, tags,
+or agent ID.
+
+An "Agent Fact Card" is a machine-readable JSON document that describes your
+agent — its name, capabilities, endpoints, input/output schemas, and
+metadata. Think of it as a business card for your AI agent.
+
+Key NANDA repositories:
+  - NANDA Index:   https://github.com/projnanda/nanda-index
+  - NEST framework: https://github.com/projnanda/NEST
+  - NANDA Adapter:  https://github.com/projnanda/adapter
+
+
+PREREQUISITES
+-------------
+
+  1. A running AI agent with an HTTP API (e.g., FastAPI, Flask, Express).
+  2. A public URL for your agent (e.g., via ngrok, a cloud VM, or a deployed
+     container). The registry stores this URL so other agents can reach you.
+  3. Python 3.8+ with the `requests` library installed.
+
+
+STEP 1: ADD AN AGENT CARD ENDPOINT
+-----------------------------------
+
+Add a `/.well-known/agent.json` endpoint to your agent that returns a JSON
+document describing what your agent does. This is similar to how websites
+serve `/.well-known/` metadata files.
+
+Example for a FastAPI application:
+
+    AGENT_CARD = {
+        "name": "My Agent",
+        "description": "What the agent does, in plain English.",
+        "url": "https://your-public-url.com",
+        "version": "1.0.0",
+        "capabilities": ["skill-1", "skill-2"],
+        "endpoints": {
+            "main": "/api/v1/do-thing",
+            "health": "/health",
+            "agent_card": "/.well-known/agent.json",
+        },
+        "input_schema": {
+            "query": "string — what to search for",
+        },
+        "output_schema": {
+            "result": "string — the answer",
+        },
+        "provider": {
+            "organization": "Your Org",
+            "project": "your-project-name",
+        },
+    }
+
+    @app.get("/.well-known/agent.json")
+    async def agent_card():
+        return AGENT_CARD
+
+There is no strict schema enforced by the registry — the card is for human and
+machine consumption. Include whatever fields are useful for discovery.
+
+
+STEP 2: REGISTER WITH THE NANDA INDEX
+--------------------------------------
+
+The NANDA Index runs at:
+
+    https://registry.chat39.com:6900
+
+(This URL may change — check the projnanda/nanda-index repo for the latest.)
+
+Registration uses two API calls:
+
+  a) POST /register — creates the agent record
+  b) PUT /agents/<agent_id>/status — enriches it with capabilities & tags
+
+Here is the minimal Python code to register:
+
+    import requests
+
+    REGISTRY_URL = "https://registry.chat39.com:6900"
+
+    # Step 1: Register the agent
+    requests.post(f"{REGISTRY_URL}/register", json={
+        "agent_id": "my-unique-agent-id",
+        "agent_url": "https://your-public-url.com",
+        "api_url": "https://your-public-url.com",
+        "agent_facts_url": "https://your-public-url.com/.well-known/agent.json",
+    }, verify=False)
+
+    # Step 2: Add capabilities and tags
+    requests.put(f"{REGISTRY_URL}/agents/my-unique-agent-id/status", json={
+        "alive": True,
+        "capabilities": ["skill-1", "skill-2"],
+        "tags": ["domain-tag-1", "domain-tag-2"],
+    }, verify=False)
+
+Note: `verify=False` is used because the registry may use self-signed certs
+in development. In production, use proper certificate verification.
+
+
+STEP 3: VERIFY YOUR REGISTRATION
+---------------------------------
+
+Look up your agent by ID:
+
+    curl https://registry.chat39.com:6900/lookup/my-unique-agent-id
+
+List all registered agents:
+
+    curl https://registry.chat39.com:6900/list
+
+Search by capability:
+
+    curl 'https://registry.chat39.com:6900/search?capabilities=skill-1'
+
+Search by text query:
+
+    curl 'https://registry.chat39.com:6900/search?q=my-unique'
+
+
+NANDA INDEX API REFERENCE (QUICK)
+---------------------------------
+
+  POST   /register                      Register a new agent
+  GET    /lookup/<agent_id>             Look up agent by ID
+  GET    /list                          List all agents
+  GET    /search?q=&capabilities=&tags= Search agents
+  GET    /agents/<agent_id>             Detailed agent info
+  PUT    /agents/<agent_id>/status      Update status/capabilities/tags
+  DELETE /agents/<agent_id>             Remove an agent
+  GET    /health                        Registry health check
+  GET    /stats                         Registry statistics
+
+
+USING THE REGISTRATION SCRIPT (THIS PROJECT)
+---------------------------------------------
+
+This project includes a ready-made registration script at:
+
+    scripts/register_with_nanda.py
+
+Usage:
+
+    # 1. Set your environment variables (or add to .env)
+    export SCOUT_PUBLIC_URL=https://your-scout-agent.ngrok-free.app
+    export PREP_PUBLIC_URL=https://your-prep-agent.ngrok-free.app
+
+    # 2. Dry run (prints what would be sent, doesn't actually register)
+    python scripts/register_with_nanda.py --dry-run
+
+    # 3. Register for real
+    python scripts/register_with_nanda.py
+
+    # 4. Use a different registry
+    NANDA_REGISTRY_URL=https://custom-registry.com:6900 \
+        python scripts/register_with_nanda.py
+
+
+COMMON PITFALLS
+---------------
+
+  1. "Agent not found after registration"
+     → The registry stores the agent_url you provided. Make sure it's publicly
+       reachable from the internet, not just localhost.
+
+  2. "SSL verification errors"
+     → The NANDA registry may use self-signed certificates. Use verify=False
+       for development, or install the certificate for production.
+
+  3. "Which agent_id should I use?"
+     → Pick something descriptive and unique. The NEST framework uses patterns
+       like "agentm123456" or "agents123456", but any string works.
+
+  4. "Do I need the NEST framework or nanda-adapter?"
+     → No. Registration is just HTTP calls to the registry REST API. The NEST
+       framework and nanda-adapter are convenience wrappers — useful if you
+       want the full A2A protocol, but not required for registration.
+
+  5. "How do I make my local agent publicly reachable?"
+     → Use ngrok: `ngrok http 8080` gives you a public HTTPS URL that tunnels
+       to your local port. Set that as your SCOUT_PUBLIC_URL.
