@@ -1,6 +1,7 @@
 import os
 import json
 import asyncio
+import httpx
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel, Field
 from typing import List, Optional
@@ -95,7 +96,40 @@ def extract_resume_text(filename: str, data: bytes) -> str:
 
 
 # ==========================================
-# 3. Core Agent Logic
+# 3. Vector DB Integration (Module A)
+#    Queries Module A's /api/v1/search to
+#    retrieve relevant resume tips that
+#    ground and enrich the LLM prompt.
+# ==========================================
+
+# Module A URL — override with env var when deployed to Render
+VECTOR_DB_URL = os.getenv("VECTOR_DB_URL", "http://localhost:8082")
+
+async def fetch_resume_tips(query: str) -> str:
+    """
+    Query Module A's vector DB for resume/interview tips
+    relevant to the job role and skills.
+    Fails gracefully — if Module A is unreachable, returns empty string
+    so the rest of Agent 2 still works.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.post(
+                f"{VECTOR_DB_URL}/api/v1/search",
+                json={"query": query}
+            )
+            response.raise_for_status()
+            data = response.json()
+            tips = data.get("result", "")
+            print(f"✅ Vector DB tips retrieved for query: '{query}'")
+            return tips
+    except Exception as e:
+        print(f"⚠️  Module A unreachable, skipping resume tips: {e}")
+        return ""
+
+
+# ==========================================
+# 4. Core Agent Logic
 #    One coroutine per job — runs concurrently
 #    via asyncio.gather() for low latency.
 # ==========================================
@@ -107,8 +141,13 @@ async def generate_questions_for_job(
 ) -> InterviewPrepResponse:
     """
     Generate 3 tailored interview questions for a single job.
-    Retries up to 3 times on LLM parse failure (mirrors Agent 1's pattern).
+    Fetches resume tips from Module A vector DB to enrich the prompt.
+    Retries up to 3 times on LLM parse failure.
     """
+    # Query vector DB using job title + core skills as the search query
+    vector_query = f"{job.job_title} {' '.join(job.core_skills)}"
+    resume_tips = await fetch_resume_tips(vector_query)
+
     max_retries = 3
     for attempt in range(max_retries):
         try:
@@ -118,6 +157,7 @@ async def generate_questions_for_job(
                 "core_skills": ", ".join(job.core_skills),
                 "summary":     job.summary,
                 "resume":      resume_text,
+                "resume_tips": resume_tips if resume_tips else "No additional tips available.",
             })
             return result
         except Exception as e:
@@ -147,11 +187,13 @@ async def run_interview_agent(
         (
             "system",
             """You are an expert technical recruiter and career coach.
-Given a candidate's resume and a specific job description, your task is:
+Given a candidate's resume, a specific job description, and curated resume tips,
+your task is:
 1. Identify the candidate's most relevant skills and experiences (candidate_highlights).
 2. Generate exactly 3 interview questions — one Technical, one Behavioral, one Role-Specific.
    Each question must be tailored to BOTH the JD and the candidate's actual background.
 3. For each question, include a short rationale explaining why it's relevant.
+4. Where applicable, incorporate insights from the resume tips to make questions sharper.
 
 Be specific. Reference actual skills, projects, or experiences from the resume where possible.
 If any field in the JD is 'Not Available', infer reasonable context from the rest."""
@@ -166,6 +208,9 @@ Summary:     {summary}
 
 === CANDIDATE RESUME ===
 {resume}
+
+=== RESUME & INTERVIEW TIPS (from knowledge base) ===
+{resume_tips}
 
 Generate the structured output now."""
         ),
@@ -193,7 +238,7 @@ Generate the structured output now."""
 
 
 # ==========================================
-# 4. FastAPI Deployment Shell
+# 5. FastAPI Deployment Shell
 # ==========================================
 
 app = FastAPI(
@@ -201,13 +246,15 @@ app = FastAPI(
     description=(
         "MIT NANDA Sandbox — Agent 2. "
         "Ingests Agent 1's job JSON + a candidate resume, "
+        "queries Module A vector DB for resume tips, "
         "and returns 3 tailored interview questions per job."
     ),
     version="1.0.0",
 )
 
+
 # ==========================================
-# NANDA Agent Card (/.well-known/agent.json)
+# 6. NANDA Agent Card (/.well-known/agent.json)
 # ==========================================
 
 AGENT_CARD = {
@@ -226,23 +273,26 @@ AGENT_CARD = {
         "question-generation",
         "llm-extraction",
         "structured-output",
+        "vector-db-retrieval",
     ],
     "endpoints": {
-        "prep": "/api/v1/prep",
-        "health": "/health",
+        "prep":       "/api/v1/prep",
+        "interview":  "/api/v1/interview",
+        "health":     "/health",
         "agent_card": "/.well-known/agent.json",
     },
     "input_schema": {
-        "resume": "file upload (.pdf, .docx, or .txt)",
-        "jobs_json": "string — Agent 1 JSON output or bare jobs array",
+        "resume":      "file upload (.pdf, .docx, or .txt) via /api/v1/prep",
+        "resume_text": "plain text string via /api/v1/interview (frontend)",
+        "jobs_json":   "string — Agent 1 JSON output or bare jobs array",
     },
     "output_schema": {
-        "status": "string",
+        "status":  "string",
         "results": "array of {company, job_title, candidate_highlights, questions}",
     },
     "provider": {
         "organization": "MIT NANDA Sandbox",
-        "project": "nanda-job-scout",
+        "project":      "nanda-job-scout",
     },
 }
 
@@ -252,6 +302,10 @@ async def agent_card():
     """NANDA Agent Fact Card — machine-readable metadata for agent discovery."""
     return AGENT_CARD
 
+
+# ==========================================
+# 7. Main Endpoint
+# ==========================================
 
 @app.post(
     "/api/v1/prep",
@@ -287,7 +341,6 @@ async def api_generate_interview_questions(
     # --- 2. Parse Agent 1 JSON (flexible: full object OR bare array) ---
     try:
         parsed = json.loads(jobs_json)
-        # Accept both {"status": ..., "jobs": [...]} and plain [...]
         raw_jobs = parsed.get("jobs", parsed) if isinstance(parsed, dict) else parsed
         jobs = [JobJD(**j) for j in raw_jobs]
     except Exception as e:
@@ -305,7 +358,50 @@ async def api_generate_interview_questions(
 
 
 # ==========================================
-# 5. Health Check
+# 8. Frontend-Compatible Endpoint
+#    Matches the shape api_client.py expects:
+#    POST /api/v1/interview
+#    { "job": {...}, "resume_text": "..." }
+#    → { "status": "success", "questions": ["Q1", "Q2", "Q3"] }
+#    Also queries Module A vector DB for tips.
+# ==========================================
+
+class FrontendInterviewRequest(BaseModel):
+    job: JobJD
+    resume_text: str = ""
+
+class FrontendInterviewResponse(BaseModel):
+    status: str
+    questions: List[str]
+
+
+@app.post(
+    "/api/v1/interview",
+    response_model=FrontendInterviewResponse,
+    tags=["Frontend"],
+    summary="Frontend-compatible endpoint — receives plain text resume, returns flat question list",
+)
+async def api_interview_for_frontend(request: FrontendInterviewRequest):
+    """
+    Thin adapter layer for the Streamlit frontend.
+    - Receives plain text resume string parsed by the frontend (no file upload needed)
+    - Queries Module A vector DB for resume tips to enrich questions
+    - Flattens the response into a simple list of question strings
+    """
+    cleaned_resume = request.resume_text.strip() or "No resume provided — generate general questions based on the job description."
+    # Truncate if extremely long to stay within LLM context limits
+    if len(cleaned_resume) > 12000:
+        cleaned_resume = cleaned_resume[:12000] + "\n[Resume truncated for length]"
+    try:
+        batch = await run_interview_agent([request.job], cleaned_resume)
+        questions = [q.question for q in batch.results[0].questions]
+        return FrontendInterviewResponse(status="success", questions=questions)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==========================================
+# 9. Health Check
 # ==========================================
 
 @app.get("/health", tags=["Ops"])
@@ -315,4 +411,4 @@ async def health():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8081)  # Port 8081 keeps it separate from Agent 1 (8080)
+    uvicorn.run(app, host="0.0.0.0", port=8081)
