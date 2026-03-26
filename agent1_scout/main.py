@@ -6,6 +6,7 @@ import logging
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from typing import List
+from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_community.utilities import SerpAPIWrapper
 from langchain_core.prompts import ChatPromptTemplate
@@ -25,6 +26,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger("agent1")
 
+
+load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 # ==========================================
 # 1. 定义数据结构 (A2A 通信协议)
