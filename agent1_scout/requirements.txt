@@ -7,3 +7,4 @@ langchain-google-genai
 langchain-community
 google-search-results
 cachetools
+requests
