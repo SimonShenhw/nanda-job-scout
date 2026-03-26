@@ -127,8 +127,10 @@ async def generate_questions_for_job(
             if attempt == max_retries - 1:
                 raise Exception(
                     f"LLM failed to generate questions for {job.job_title} @ {job.company} after {max_retries} attempts."
-                )
+                ) from e
             await asyncio.sleep(1)
+
+    raise RuntimeError("Retry loop exited without returning a response.")
 
 
 async def run_interview_agent(
@@ -183,10 +185,10 @@ Generate the structured output now."""
     # Separate successes from failures — never let one bad job kill the batch
     successful: List[InterviewPrepResponse] = []
     for job, result in zip(jobs, results):
-        if isinstance(result, Exception):
-            print(f"❌  Skipping '{job.job_title}' @ {job.company}: {result}")
-        else:
+        if isinstance(result, InterviewPrepResponse):
             successful.append(result)
+        else:
+            print(f"❌  Skipping '{job.job_title}' @ {job.company}: {result}")
 
     if not successful:
         raise Exception("All jobs failed to generate interview questions. Check your LLM API key and quota.")
@@ -251,9 +253,13 @@ async def api_generate_interview_questions(
     # --- 1. Parse resume ---
     try:
         resume_bytes = await resume.read()
+        if not resume.filename:
+            raise HTTPException(status_code=400, detail="Uploaded file is missing a filename.")
         resume_text = extract_resume_text(resume.filename, resume_bytes)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"Failed to parse resume: {e}")
 
