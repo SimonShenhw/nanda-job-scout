@@ -1,9 +1,11 @@
 import os
 import json
 import asyncio
+from copy import deepcopy
+from pathlib import Path
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List
 
 # Resume parsing dependencies
 import pdfplumber                          # pip install pdfplumber
@@ -125,8 +127,10 @@ async def generate_questions_for_job(
             if attempt == max_retries - 1:
                 raise Exception(
                     f"LLM failed to generate questions for {job.job_title} @ {job.company} after {max_retries} attempts."
-                )
+                ) from e
             await asyncio.sleep(1)
+
+    raise RuntimeError("Retry loop exited without returning a response.")
 
 
 async def run_interview_agent(
@@ -181,10 +185,10 @@ Generate the structured output now."""
     # Separate successes from failures — never let one bad job kill the batch
     successful: List[InterviewPrepResponse] = []
     for job, result in zip(jobs, results):
-        if isinstance(result, Exception):
-            print(f"❌  Skipping '{job.job_title}' @ {job.company}: {result}")
-        else:
+        if isinstance(result, InterviewPrepResponse):
             successful.append(result)
+        else:
+            print(f"❌  Skipping '{job.job_title}' @ {job.company}: {result}")
 
     if not successful:
         raise Exception("All jobs failed to generate interview questions. Check your LLM API key and quota.")
@@ -210,47 +214,21 @@ app = FastAPI(
 # NANDA Agent Card (/.well-known/agent.json)
 # ==========================================
 
-AGENT_CARD = {
-    "name": "Interview Prep Agent",
-    "description": (
-        "AI-powered interview preparation agent that takes structured job "
-        "descriptions from the Job Scout Agent plus a candidate resume, and "
-        "generates tailored interview questions for each role. Part of the "
-        "NANDA Job Scout project."
-    ),
-    "url": os.getenv("PUBLIC_URL", "http://localhost:8081"),
-    "version": "1.0.0",
-    "capabilities": [
-        "interview-prep",
-        "resume-parsing",
-        "question-generation",
-        "llm-extraction",
-        "structured-output",
-    ],
-    "endpoints": {
-        "prep": "/api/v1/prep",
-        "health": "/health",
-        "agent_card": "/.well-known/agent.json",
-    },
-    "input_schema": {
-        "resume": "file upload (.pdf, .docx, or .txt)",
-        "jobs_json": "string — Agent 1 JSON output or bare jobs array",
-    },
-    "output_schema": {
-        "status": "string",
-        "results": "array of {company, job_title, candidate_highlights, questions}",
-    },
-    "provider": {
-        "organization": "MIT NANDA Sandbox",
-        "project": "nanda-job-scout",
-    },
-}
+AGENT_CARD_PATH = Path(__file__).with_name("agent.json")
+with AGENT_CARD_PATH.open("r", encoding="utf-8") as agent_card_file:
+    AGENT_CARD_TEMPLATE = json.load(agent_card_file)
+
+
+def get_agent_card() -> dict:
+    agent_card = deepcopy(AGENT_CARD_TEMPLATE)
+    agent_card["url"] = os.getenv("PUBLIC_URL", agent_card["url"])
+    return agent_card
 
 
 @app.get("/.well-known/agent.json", tags=["NANDA"])
 async def agent_card():
     """NANDA Agent Fact Card — machine-readable metadata for agent discovery."""
-    return AGENT_CARD
+    return get_agent_card()
 
 
 @app.post(
@@ -275,9 +253,13 @@ async def api_generate_interview_questions(
     # --- 1. Parse resume ---
     try:
         resume_bytes = await resume.read()
+        if not resume.filename:
+            raise HTTPException(status_code=400, detail="Uploaded file is missing a filename.")
         resume_text = extract_resume_text(resume.filename, resume_bytes)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"Failed to parse resume: {e}")
 

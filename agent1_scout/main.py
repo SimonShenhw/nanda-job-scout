@@ -3,6 +3,9 @@ import sys
 import time
 import asyncio
 import logging
+import json
+from copy import deepcopy
+from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from typing import List
@@ -159,46 +162,21 @@ app = FastAPI(
 # NANDA Agent Card (/.well-known/agent.json)
 # ==========================================
 
-AGENT_CARD = {
-    "name": "Job Scout Agent",
-    "description": (
-        "AI-powered job search agent that searches the web for job listings "
-        "matching a given location and keywords, then extracts structured "
-        "job descriptions using an LLM. Part of the NANDA Job Scout project."
-    ),
-    "url": os.getenv("PUBLIC_URL", "http://localhost:8080"),
-    "version": "2.3.0",
-    "capabilities": [
-        "job-search",
-        "web-scraping",
-        "llm-extraction",
-        "structured-output",
-    ],
-    "endpoints": {
-        "scout": "/api/v1/scout",
-        "health": "/health",
-        "agent_card": "/.well-known/agent.json",
-    },
-    "input_schema": {
-        "location": "string — geographic area (default: Greater Boston Area)",
-        "keywords": "string — search keywords",
-        "num_results": "int 1-10 — number of jobs to return",
-    },
-    "output_schema": {
-        "status": "string",
-        "jobs": "array of {company, job_title, estimated_salary, core_skills, summary, apply_link}",
-    },
-    "provider": {
-        "organization": "MIT NANDA Sandbox",
-        "project": "nanda-job-scout",
-    },
-}
+AGENT_CARD_PATH = Path(__file__).with_name("agent.json")
+with AGENT_CARD_PATH.open("r", encoding="utf-8") as agent_card_file:
+    AGENT_CARD_TEMPLATE = json.load(agent_card_file)
+
+
+def get_agent_card() -> dict:
+    agent_card = deepcopy(AGENT_CARD_TEMPLATE)
+    agent_card["url"] = os.getenv("PUBLIC_URL", agent_card["url"])
+    return agent_card
 
 
 @app.get("/.well-known/agent.json", tags=["NANDA"])
 async def agent_card():
     """NANDA Agent Fact Card — machine-readable metadata for agent discovery."""
-    return AGENT_CARD
+    return get_agent_card()
 
 
 @app.get("/health", tags=["Ops"])
