@@ -1,0 +1,30 @@
+{
+  "name": "Interview Prep Agent",
+  "description": "AI-powered interview preparation agent that takes structured job descriptions from the Job Scout Agent plus a candidate resume, and generates tailored interview questions for each role. Part of the NANDA Job Scout project.",
+  "url": "http://localhost:8081",
+  "version": "1.0.0",
+  "capabilities": [
+    "interview-prep",
+    "resume-parsing",
+    "question-generation",
+    "llm-extraction",
+    "structured-output"
+  ],
+  "endpoints": {
+    "prep": "/api/v1/prep",
+    "health": "/health",
+    "agent_card": "/.well-known/agent.json"
+  },
+  "input_schema": {
+    "resume": "file upload (.pdf, .docx, or .txt)",
+    "jobs_json": "string — Agent 1 JSON output or bare jobs array"
+  },
+  "output_schema": {
+    "status": "string",
+    "results": "array of {company, job_title, candidate_highlights, questions}"
+  },
+  "provider": {
+    "organization": "MIT NANDA Sandbox",
+    "project": "nanda-job-scout"
+  }
+}

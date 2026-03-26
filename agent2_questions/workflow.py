@@ -1,9 +1,11 @@
 import os
 import json
 import asyncio
+from copy import deepcopy
+from pathlib import Path
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List
 
 # Resume parsing dependencies
 import pdfplumber                          # pip install pdfplumber
@@ -210,47 +212,21 @@ app = FastAPI(
 # NANDA Agent Card (/.well-known/agent.json)
 # ==========================================
 
-AGENT_CARD = {
-    "name": "Interview Prep Agent",
-    "description": (
-        "AI-powered interview preparation agent that takes structured job "
-        "descriptions from the Job Scout Agent plus a candidate resume, and "
-        "generates tailored interview questions for each role. Part of the "
-        "NANDA Job Scout project."
-    ),
-    "url": os.getenv("PUBLIC_URL", "http://localhost:8081"),
-    "version": "1.0.0",
-    "capabilities": [
-        "interview-prep",
-        "resume-parsing",
-        "question-generation",
-        "llm-extraction",
-        "structured-output",
-    ],
-    "endpoints": {
-        "prep": "/api/v1/prep",
-        "health": "/health",
-        "agent_card": "/.well-known/agent.json",
-    },
-    "input_schema": {
-        "resume": "file upload (.pdf, .docx, or .txt)",
-        "jobs_json": "string — Agent 1 JSON output or bare jobs array",
-    },
-    "output_schema": {
-        "status": "string",
-        "results": "array of {company, job_title, candidate_highlights, questions}",
-    },
-    "provider": {
-        "organization": "MIT NANDA Sandbox",
-        "project": "nanda-job-scout",
-    },
-}
+AGENT_CARD_PATH = Path(__file__).with_name("agent.json")
+with AGENT_CARD_PATH.open("r", encoding="utf-8") as agent_card_file:
+    AGENT_CARD_TEMPLATE = json.load(agent_card_file)
+
+
+def get_agent_card() -> dict:
+    agent_card = deepcopy(AGENT_CARD_TEMPLATE)
+    agent_card["url"] = os.getenv("PUBLIC_URL", agent_card["url"])
+    return agent_card
 
 
 @app.get("/.well-known/agent.json", tags=["NANDA"])
 async def agent_card():
     """NANDA Agent Fact Card — machine-readable metadata for agent discovery."""
-    return AGENT_CARD
+    return get_agent_card()
 
 
 @app.post(
