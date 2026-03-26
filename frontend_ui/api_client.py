@@ -1,8 +1,10 @@
+import os
 import requests
 import time
 
 
-BASE_URL = "https://nanda-job-scout.onrender.com"
+SCOUT_API_URL = os.environ.get("SCOUT_API_URL", "https://nanda-job-scout.onrender.com")
+PREP_API_URL = os.environ.get("PREP_API_URL", "https://nanda-job-scout.onrender.com")
 
 # Retry settings
 MAX_RETRIES = 3
@@ -81,7 +83,7 @@ def scout_jobs(location: str, keywords: str, num_results: int) -> dict:
     """
     result = _request_with_retry(
         method="POST",
-        url=f"{BASE_URL}/api/v1/scout",
+        url=f"{SCOUT_API_URL}/api/v1/scout",
         payload={
             "location": location,
             "keywords": keywords,
@@ -110,7 +112,7 @@ def generate_interview_questions(job: dict, resume_text: str) -> dict:
     """
     result = _request_with_retry(
         method="POST",
-        url=f"{BASE_URL}/api/v1/interview",
+        url=f"{PREP_API_URL}/api/v1/interview",
         payload={"job": job, "resume_text": resume_text},
     )
 

@@ -1,0 +1,26 @@
+services:
+  agent1-scout:
+    build: ./agent1_scout
+    ports:
+      - "8080:8080"
+    env_file: .env
+    restart: unless-stopped
+
+  agent2-questions:
+    build: ./agent2_questions
+    ports:
+      - "8081:8081"
+    env_file: .env
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend_ui
+    ports:
+      - "8501:8501"
+    environment:
+      - SCOUT_API_URL=http://agent1-scout:8080
+      - PREP_API_URL=http://agent2-questions:8081
+    depends_on:
+      - agent1-scout
+      - agent2-questions
+    restart: unless-stopped
