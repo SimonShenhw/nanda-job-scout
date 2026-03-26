@@ -1,0 +1,20 @@
+[Behavioral/STAR] When evaluating behavioral answers, ensure the candidate strictly uses the STAR method (Situation, Task, Action, Result) with 70% focus on their specific Action and technical contribution.
+[Behavioral/Metrics] A strong behavioral answer must include quantifiable metrics in the Result phase. If missing, prompt the candidate to provide concrete data, percentage improvements, or business impact.
+[Behavioral/Pronouns] Candidates should use "I" instead of "We" when describing project achievements to clearly demonstrate their individual leadership, coding contribution, and ownership.
+[Behavioral/Failures] When asked about failures or bugs, a good candidate explains the root cause, takes accountability, and details the specific lessons learned and preventative CI/CD measures taken.
+[SWE/Coding] In coding interviews, candidates must not write code immediately. They should first clarify edge cases, input constraints, and expected output formats with the interviewer.
+[SWE/Complexity] During algorithm questions, explicitly evaluating Big O time and space complexity before and after optimization is a mandatory requirement for software engineering roles.
+[SWE/System Design] For System Design rounds, candidates should start with a high-level architecture diagram and API design before diving into database schemas or specific component scaling.
+[SWE/Communication] If a candidate gets stuck on a technical problem, they must vocalize their thought process. Silence is a red flag; thinking out loud shows problem-solving ability.
+[SWE/Python] For Python-specific roles, check if the candidate mentions Pythonic concepts like list comprehensions, generators, context managers, or decorators when discussing code optimization.
+[AI/ML/Deployment] For Applied AI roles, prioritize candidates who mention model deployment tools like FastAPI, Docker, ONNX, or Linode, showing they can move models beyond local Jupyter Notebooks.
+[AI/ML/Tradeoffs] A strong ML engineering candidate must articulate the trade-offs between model accuracy and inference latency (speed) when discussing real-world production systems.
+[AI/ML/Data] When discussing ML project experience, candidates should explain how they handled dirty data, missing values, imbalanced datasets, or data drift, not just model hyperparameter tuning.
+[AI/ML/Fundamentals] Ensure ML candidates can clearly explain fundamental concepts like the Bias-Variance tradeoff, Overfitting, and Cross-Validation techniques without relying on buzzwords.
+[AI/LLM] For modern AI roles involving Large Language Models, candidates should demonstrate knowledge of RAG (Retrieval-Augmented Generation), vector databases (like ChromaDB), or prompt engineering techniques.
+[Resume/Format] Resumes must strictly follow reverse chronological order. If specific dates or months are missing from recent project or work experiences, flag this as a critical formatting error.
+[Resume/Verbs] Every bullet point on a resume must start with a strong action verb (e.g., "Architected", "Deployed", "Optimized") rather than weak phrases like "Helped with" or "Responsible for".
+[Resume/Skills] Rating skills on a resume (e.g., "Python: 9/10" or using progress bars) is a red flag. Candidates should instead demonstrate skill proficiency by linking the skill to a specific project outcome.
+[Resume/Impact] Resume bullet points should follow the Google XYZ formula: "Accomplished [X] as measured by [Y], by doing [Z]". Assess if the candidate provides clear [Y] metrics.
+[General/Questions] At the end of the interview, a strong candidate asks insightful follow-up questions about the company's tech stack, engineering culture, or specific team challenges.
+[General/Honesty] If a candidate does not know the answer to a deep technical question, admitting "I don't know but here is how I would find the solution" is vastly preferred over guessing or making up technical terms.
