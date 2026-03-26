@@ -10,7 +10,10 @@ loader = TextLoader("resume_tips.txt")
 documents = loader.load()
 
 print("2. 正在切割文本...")
-text_splitter = RecursiveCharacterTextSplitter(chunk_size=200, chunk_overlap=20)
+text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=350,  # 刚好能完整包住最长的一条Tip
+    chunk_overlap=50,  # 留一点点重叠，防止极端情况切断单词
+)
 docs = text_splitter.split_documents(documents)
 
 print("3. 正在转换向量并存入数据库 (首次运行会自动下载模型权重，存放在外置硬盘中)...")
