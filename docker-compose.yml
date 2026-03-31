@@ -13,6 +13,12 @@ services:
     env_file: .env
     restart: unless-stopped
 
+  module-a-vectordb:
+    build: ./module_a_vectordb
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
   frontend:
     build: ./frontend_ui
     ports:
@@ -23,4 +29,5 @@ services:
     depends_on:
       - agent1-scout
       - agent2-questions
+      - module-a-vectordb
     restart: unless-stopped
