@@ -1,7 +1,7 @@
 # 🎯 Job Scout AI — Web UI (Module C)
 
 > Interactive Streamlit interface for the Job Scout AI multi-agent system.  
-> **Course:** AAI 5025 | **University:** Northeastern University
+> **Course:** AAI 6600| **University:** Northeastern University
 
 ---
 
