@@ -79,7 +79,3 @@ Integration points with other components of the NANDA ecosystem.
 - **Python**: Primary programming language.
 - **FastAPI**: Framework for building APIs.
 - **Asyncio**: For concurrent processing.
-
-## 8. Setup & Environment
-- **Requirements**: List of dependencies required to run the agent.
-- **Running Instructions**: Step-by-step guide on how to deploy and run the agent.
