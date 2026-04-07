@@ -1,17 +1,39 @@
-# workflow.py Structure and Components
+# Workflow.py Architecture and Components
 
-## Overview
-The `workflow.py` file is designed to manage the workflow of job scouting operations. It integrates various components to streamline the process.
+## Data Structures
+Workflow.py utilizes a set of data structures designed to efficiently handle data related to job candidates and resumes. Key structures include:
 
-## Components
+- **Candidate Class**: Stores detailed information about the candidate including their name, contact information, and a list of their resumes.
+- **Resume Class**: Represents individual resumes, encapsulating details such as content, metadata, and parsing results.
 
-1. **Imports**: Necessary libraries and modules required for functionality.
-2. **Configuration**: Settings and parameters to tailor the workflow execution.
-3. **Main Functions**:
-   - **initialize_workflow()**: Sets up the initial conditions for the workflow.
-   - **execute_step(step)**: Manages the execution of individual steps within the workflow.
-   - **finalize_workflow()**: Cleans up and finalizes the operations once the workflow is complete.
+## Resume Parsing
+The resume parsing component is responsible for extracting relevant information from various resume formats. This process includes:
 
-4. **Error Handling**: Mechanisms to catch and respond to errors during workflow execution.
+- **Text Extraction**: Libraries such as `pdfminer` or `PyMuPDF` are utilized to pull text from PDF and Word formats.
+- **Data Normalization**: Extracted data is normalized and structured into candidate objects to ensure consistency.
+- **Keyword Matching**: The parser identifies key skills and experience, leveraging Natural Language Processing (NLP) techniques.
 
-5. **Logging**: Logs for tracking the execution process, which helps in debugging and monitoring.
+## Core Agent Logic
+The core agent logic is the heart of workflow.py, responsible for:
+
+- **Decision Making**: Based on the parsed data, the agent decides how to score or rank candidates for specific roles.
+- **Integration with External Services**: It interacts with job boards and applicant tracking systems to pull in real-time data.
+- **Feedback Loop**: Gathers feedback on candidate performance and adjusts future candidate scoring mechanisms accordingly.
+
+## FastAPI Deployment
+This component deals with exposing the agent's functionalities via a RESTful API using FastAPI:
+
+- **Endpoints**: Provides endpoints for submitting resumes, retrieving candidate scores, and fetching overall statistics.
+- **Asynchronous Processing**: Leveraging FastAPI's async capabilities for efficient handling of multiple requests concurrently.
+- **Validation**: Input validation is rigorously enforced to maintain data integrity.
+
+## Health Checks
+The health check module ensures that the various components are functioning as expected:
+
+- **Endpoint Monitoring**: Regular pings to critical API endpoints to ensure they are responsive.
+- **Resource Usage Tracking**: Monitors CPU and memory usage to predict and handle potential issues before they affect service availability.
+- **Error Logging**: Captures errors and exceptions with detailed logging for further analysis.
+
+---
+
+This breakdown provides a comprehensive overview of the workflow.py architecture and its main components, ensuring clarity on its functionality and design principles.
