@@ -6,6 +6,7 @@ import asyncio
 import logging
 from copy import deepcopy
 from pathlib import Path
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from typing import List
@@ -18,6 +19,10 @@ from cachetools import TTLCache
 # [EN] Fix GBK encoding crash when printing non-ASCII chars in Windows cmd
 if sys.stdout.encoding and sys.stdout.encoding.lower() != 'utf-8':
     sys.stdout.reconfigure(encoding='utf-8')
+
+# [ZH] 加载 .env 文件中的环境变量（支持直接 python main.py 启动）
+# [EN] Load environment variables from .env file (supports direct python main.py startup)
+load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 
 # [ZH] 配置日志格式（替代 print，带时间戳和级别）
@@ -78,10 +83,22 @@ PROMPT = ChatPromptTemplate.from_messages([
 # [EN] Cache: 10-min TTL, max 50 items. Repeated searches return instantly, saving API quota
 job_cache = TTLCache(maxsize=50, ttl=600)
 
-# [ZH] LLM 和搜索工具是无状态的，模块级初始化一次复用
-# [EN] LLM and search tool are stateless; initialize once at module level for reuse
-LLM = ChatGoogleGenerativeAI(model="gemini-3-flash-preview", temperature=0.0)
-SEARCH_TOOL = SerpAPIWrapper()
+# [ZH] LLM 和搜索工具：延迟初始化，首次调用时创建，之后复用
+# [EN] LLM and search tool: lazy init on first call, then reused
+_llm = None
+_search_tool = None
+
+def get_llm():
+    global _llm
+    if _llm is None:
+        _llm = ChatGoogleGenerativeAI(model="gemini-3-flash-preview", temperature=0.0)
+    return _llm
+
+def get_search_tool():
+    global _search_tool
+    if _search_tool is None:
+        _search_tool = SerpAPIWrapper()
+    return _search_tool
 
 
 # ==========================================
@@ -98,7 +115,7 @@ async def run_scout_agent(request: ScoutRequest) -> ScoutResponse:
     logger.info(f"Executing async search: {search_query}")
 
     try:
-        raw_dict = await SEARCH_TOOL.aresults(search_query)
+        raw_dict = await get_search_tool().aresults(search_query)
 
         formatted_results = []
         organic_results = raw_dict.get("organic_results", [])
@@ -121,9 +138,9 @@ async def run_scout_agent(request: ScoutRequest) -> ScoutResponse:
         logger.warning("SerpAPI returned 0 organic results, returning empty response.")
         return ScoutResponse(status="success", jobs=[])
 
-    # [ZH] 使用模块级 LLM 常量，避免重复创建
-    # [EN] Use module-level LLM constant to avoid re-creation per request
-    structured_llm = LLM.with_structured_output(ScoutResponse)
+    # [ZH] 使用延迟初始化的 LLM 单例，避免重复创建
+    # [EN] Use lazy-initialized LLM singleton to avoid re-creation per request
+    structured_llm = get_llm().with_structured_output(ScoutResponse)
     chain = PROMPT | structured_llm
 
     logger.info("Using Gemini 3 to structure data...")
