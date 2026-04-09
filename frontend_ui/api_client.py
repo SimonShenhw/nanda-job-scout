@@ -1,30 +1,46 @@
+import json
 import os
 import requests
 import time
 
 
-SCOUT_API_URL = os.environ.get("SCOUT_API_URL", "https://nanda-job-scout.onrender.com")
-PREP_API_URL = os.environ.get("PREP_API_URL", "https://nanda-job-scout.onrender.com")
+SCOUT_API_URL = os.environ.get("SCOUT_API_URL", "http://127.0.0.1:8080").rstrip("/")
+PREP_API_URL = os.environ.get("PREP_API_URL", "http://127.0.0.1:8081").rstrip("/")
 
 # Retry settings
 MAX_RETRIES = 3
 RETRY_DELAY = 2  # seconds
 
 
-def _request_with_retry(method: str, url: str, payload: dict, timeout: int = 30) -> dict:
+def _request_with_retry(
+    method: str,
+    url: str,
+    payload: dict | None = None,
+    data: dict | None = None,
+    files: dict | None = None,
+    timeout: int = 30,
+) -> dict:
     """
     Generic request handler with retry logic and detailed error messages.
+    Supports both JSON and multipart/form-data requests.
     """
     last_error = None
 
     for attempt in range(1, MAX_RETRIES + 1):
         try:
-            response = requests.request(
-                method=method,
-                url=url,
-                json=payload,
-                timeout=timeout,
-            )
+            request_kwargs = {
+                "method": method,
+                "url": url,
+                "timeout": timeout,
+            }
+
+            if files or data:
+                request_kwargs["data"] = data or {}
+                request_kwargs["files"] = files or {}
+            else:
+                request_kwargs["json"] = payload or {}
+
+            response = requests.request(**request_kwargs)
             response.raise_for_status()
             return {"status": "success", "data": response.json()}
 
@@ -96,36 +112,51 @@ def scout_jobs(location: str, keywords: str, num_results: int) -> dict:
         data = result["data"]
         return {"status": "success", "jobs": data.get("jobs", []), "is_live": True}
 
-    # Fall back to mock data if server is unreachable
-    if result.get("error_type") == "connection_error":
-        mock = _mock_scout_response(num_results)
-        mock["is_live"] = False
-        return mock
-
-    return {"status": "error", "jobs": [], "message": result["message"], "is_live": False}
+    # Fall back to mock data when the live service is unreachable or temporarily failing.
+    mock = _mock_scout_response(num_results)
+    mock["is_live"] = False
+    mock["message"] = result.get("message", "Using demo data.")
+    return mock
 
 
 def generate_interview_questions(job: dict, resume_text: str) -> dict:
     """
-    Send job + resume to Module B and get tailored interview questions.
+    Send job + resume to Agent 2 and get tailored interview questions.
     Falls back to mock data if Module B is not available yet.
     """
+    jobs_json = json.dumps({"jobs": [job]})
+    files = {
+        "resume": (
+            "resume.txt",
+            (resume_text or "Sample resume").encode("utf-8"),
+            "text/plain",
+        )
+    }
+
     result = _request_with_retry(
         method="POST",
-        url=f"{PREP_API_URL}/api/v1/interview",
-        payload={"job": job, "resume_text": resume_text},
+        url=f"{PREP_API_URL}/api/v1/prep",
+        data={"jobs_json": jobs_json},
+        files=files,
+        timeout=60,
     )
 
     if result["status"] == "success":
         data = result["data"]
-        return {"status": "success", "questions": data.get("questions", []), "is_live": True}
+        questions = data.get("questions", [])
+        if not questions and data.get("results"):
+            questions = data["results"][0].get("questions", [])
 
-    if result.get("error_type") == "connection_error":
-        mock = _mock_interview_response(job)
-        mock["is_live"] = False
-        return mock
+        normalized_questions = [
+            q.get("question", str(q)) if isinstance(q, dict) else str(q)
+            for q in questions
+        ]
+        return {"status": "success", "questions": normalized_questions, "is_live": True}
 
-    return {"status": "error", "questions": [], "message": result["message"], "is_live": False}
+    mock = _mock_interview_response(job)
+    mock["is_live"] = False
+    mock["message"] = result.get("message", "Using demo questions.")
+    return mock
 
 
 # ==============================================

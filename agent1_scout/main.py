@@ -4,8 +4,12 @@ import time
 import asyncio
 import logging
 import json
+import ssl
 from copy import deepcopy
 from pathlib import Path
+
+import aiohttp
+import certifi
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from typing import List
@@ -28,6 +32,26 @@ logging.basicConfig(
     datefmt="%H:%M:%S"
 )
 logger = logging.getLogger("agent1")
+
+
+def _build_serpapi_aiosession() -> aiohttp.ClientSession:
+    """Create an aiohttp session with an explicit CA bundle for SerpAPI HTTPS."""
+    ca_bundle = certifi.where()
+    ssl_context = ssl.create_default_context(cafile=ca_bundle)
+    connector = aiohttp.TCPConnector(ssl=ssl_context)
+    return aiohttp.ClientSession(connector=connector)
+
+
+async def _fetch_serpapi_results(search_query: str) -> dict:
+    """Use async SerpAPI first, then fall back to the sync client if needed."""
+    try:
+        async with _build_serpapi_aiosession() as session:
+            search_tool = SerpAPIWrapper(aiosession=session)
+            return await search_tool.aresults(search_query)
+    except Exception as async_exc:
+        logger.warning(f"Async SerpAPI call hit SSL/network issue, trying sync fallback: {async_exc}")
+        search_tool = SerpAPIWrapper()
+        return await asyncio.to_thread(search_tool.results, search_query)
 
 
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
@@ -91,12 +115,11 @@ async def run_scout_agent(request: ScoutRequest) -> ScoutResponse:
     if not os.getenv("GOOGLE_API_KEY") or not os.getenv("SERPAPI_API_KEY"):
         raise ValueError("[ZH] 缺少 API 密钥环境变量 / [EN] Missing API Key environment variables")
 
-    search_tool = SerpAPIWrapper()
     search_query = f"{request.keywords} jobs in {request.location}"
     logger.info(f"Executing async search: {search_query}")
 
     try:
-        raw_dict = await search_tool.aresults(search_query)
+        raw_dict = await _fetch_serpapi_results(search_query)
 
         formatted_results = []
         organic_results = raw_dict.get("organic_results", [])

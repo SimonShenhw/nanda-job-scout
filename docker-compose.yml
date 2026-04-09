@@ -19,6 +19,19 @@ services:
       - "8000:8000"
     restart: unless-stopped
 
+  module-d-langgraph:
+    build: ./module_d_langgraph
+    ports:
+      - "8082:8082"
+    env_file: .env
+    environment:
+      - DOCKER_ENV=1
+    depends_on:
+      - agent1-scout
+      - agent2-questions
+      - module-a-vectordb
+    restart: unless-stopped
+
   frontend:
     build: ./frontend_ui
     ports:

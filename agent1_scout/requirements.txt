@@ -8,3 +8,5 @@ langchain-community
 google-search-results
 cachetools
 requests
+certifi
+aiohttp

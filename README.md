@@ -15,7 +15,7 @@ Streamlit UI (frontend_ui)
                                └─► Google Gemini (question generation)
 
 module_a_vectordb  →  Semantic search over resume / interview tips (ChromaDB)
-module_d_langgraph →  (placeholder — not yet implemented)
+module_d_langgraph →  LangGraph orchestration over the other services (port 8082)
 ```
 
 Each FastAPI agent also exposes a NANDA-compatible agent card at `/.well-known/agent.json`.
@@ -28,7 +28,7 @@ Each FastAPI agent also exposes a NANDA-compatible agent card at `/.well-known/a
 | `agent2_questions/` | FastAPI service that parses a resume and generates tailored interview questions per job. Runs on **port 8081**. |
 | `frontend_ui/` | Streamlit dashboard for searching jobs, uploading resumes, and practicing interviews. |
 | `module_a_vectordb/` | Builds a ChromaDB vector store from resume tips and serves semantic search via FastAPI. |
-| `module_d_langgraph/` | Placeholder for a future LangGraph-based workflow. |
+| `module_d_langgraph/` | LangGraph orchestration service that combines job search, resume tips, and interview prep. Runs on **port 8082**. |
 | `scripts/` | Utility scripts, including NANDA Index registration. |
 
 ## Prerequisites
@@ -71,6 +71,7 @@ Services:
 
 - Agent 1: `http://127.0.0.1:8080`
 - Agent 2: `http://127.0.0.1:8081`
+- Module D: `http://127.0.0.1:8082`
 - Frontend: `http://127.0.0.1:8501`
 
 The frontend container is wired automatically to the two backend services through:
@@ -159,6 +160,20 @@ pip install -r module_a_vectordb/requirements.txt
 python module_a_vectordb/build_db.py
 python module_a_vectordb/main.py
 ```
+
+### 6. Module D — LangGraph Orchestrator
+
+```bash
+pip install -r module_d_langgraph/requirements.txt
+python module_d_langgraph/main.py
+```
+
+Runs on `http://127.0.0.1:8082`.
+
+Key endpoints:
+
+- `GET /health`
+- `POST /api/v1/master-graph`
 
 ## NANDA Index registration
 
