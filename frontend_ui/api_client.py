@@ -4,8 +4,7 @@ import requests
 import time
 
 
-SCOUT_API_URL = os.environ.get("SCOUT_API_URL", "http://127.0.0.1:8080").rstrip("/")
-PREP_API_URL = os.environ.get("PREP_API_URL", "http://127.0.0.1:8081").rstrip("/")
+MODULE_D_API_URL = os.environ.get("MODULE_D_API_URL", "http://127.0.0.1:8082").rstrip("/")
 
 # Retry settings
 MAX_RETRIES = 3
@@ -92,71 +91,126 @@ def _request_with_retry(
     return {"status": "error", "error_type": last_error, "message": friendly_msg}
 
 
-def scout_jobs(location: str, keywords: str, num_results: int) -> dict:
+def _job_key(company: str, job_title: str) -> str:
+    return f"{company.strip().lower()}::{job_title.strip().lower()}"
+
+
+def _normalize_questions(question_items: list) -> list[str]:
+    return [
+        item.get("question", str(item)) if isinstance(item, dict) else str(item)
+        for item in question_items
+    ]
+
+
+def _normalize_tips(raw_tips) -> list[str]:
+    if isinstance(raw_tips, list):
+        lines = [str(item) for item in raw_tips]
+    else:
+        lines = str(raw_tips or "").splitlines()
+
+    return [
+        line.lstrip("-• ").strip()
+        for line in lines
+        if line.strip()
+    ]
+
+
+def run_module_d_workflow(query: str, location: str, resume_text: str) -> dict:
     """
-    Send a request to Agent 1 (Job Scout) and return structured job data.
-    Falls back to mock data if the server is not available yet.
+    Call Module D as the single orchestrator for jobs, resume tips, and
+    interview questions, then adapt its response for the frontend UI.
     """
     result = _request_with_retry(
         method="POST",
-        url=f"{SCOUT_API_URL}/api/v1/scout",
+        url=f"{MODULE_D_API_URL}/api/v1/master-graph",
         payload={
+            "query": query,
             "location": location,
-            "keywords": keywords,
-            "num_results": num_results,
+            "resume_text": resume_text or "Sample resume",
         },
-        timeout=90,  # Render free tier has slow cold starts
+        timeout=120,
     )
 
-    if result["status"] == "success":
-        data = result["data"]
-        return {"status": "success", "jobs": data.get("jobs", []), "is_live": True}
+    if result["status"] != "success":
+        return {
+            "status": "error",
+            "jobs": [],
+            "job_prep": {},
+            "service_statuses": {
+                "agent1": {"status": "failed", "message": result.get("message", "Module D could not reach Agent 1.")},
+                "agent2": {"status": "failed", "message": result.get("message", "Module D could not reach Agent 2.")},
+                "module_a": {"status": "failed", "message": result.get("message", "Module D could not reach Module A.")},
+                "agent3": {"status": "failed", "message": result.get("message", "Module D could not reach Agent 3.")},
+            },
+            "overall_status": "failed",
+            "message": result.get("message", "Module D orchestration failed."),
+            "is_live": False,
+        }
 
-    # Fall back to mock data when the live service is unreachable or temporarily failing.
-    mock = _mock_scout_response(num_results)
-    mock["is_live"] = False
-    mock["message"] = result.get("message", "Using demo data.")
-    return mock
+    payload = result["data"]
+    overall_status = payload.get("overall_status", "partial")
+    services = payload.get("services", {})
+    data = payload.get("data", {})
 
+    jobs = data.get("jobs", [])
+    tips = _normalize_tips(data.get("tips", ""))
+    questions = _normalize_questions(data.get("questions", []))
+    cost_of_living_analysis = data.get("cost_of_living_analysis", [])
 
-def generate_interview_questions(job: dict, resume_text: str) -> dict:
-    """
-    Send job + resume to Agent 2 and get tailored interview questions.
-    Falls back to mock data if Module B is not available yet.
-    """
-    jobs_json = json.dumps({"jobs": [job]})
-    files = {
-        "resume": (
-            "resume.txt",
-            (resume_text or "Sample resume").encode("utf-8"),
-            "text/plain",
-        )
+    service_statuses = {
+        "agent1": {
+            "status": services.get("agent1_status", "unknown"),
+            "message": services.get("agent1_error") or "Agent 1 returned live matched jobs.",
+        },
+        "agent2": {
+            "status": services.get("module_b_status", "unknown"),
+            "message": services.get("module_b_error") or "Agent 2 returned interview questions.",
+        },
+        "module_a": {
+            "status": services.get("module_a_status", "unknown"),
+            "message": services.get("module_a_error") or "Module A returned resume-tailoring tips.",
+        },
+        "agent3": {
+            "status": services.get("agent3_status", "unknown"),
+            "message": services.get("agent3_error") or "Agent 3 returned cost-of-living analysis.",
+        },
     }
 
-    result = _request_with_retry(
-        method="POST",
-        url=f"{PREP_API_URL}/api/v1/prep",
-        data={"jobs_json": jobs_json},
-        files=files,
-        timeout=60,
-    )
+    cost_map = {
+        _job_key(item.get("company", ""), item.get("job_title", "")): item
+        for item in cost_of_living_analysis
+        if isinstance(item, dict)
+    }
 
-    if result["status"] == "success":
-        data = result["data"]
-        questions = data.get("questions", [])
-        if not questions and data.get("results"):
-            questions = data["results"][0].get("questions", [])
+    grouped_questions = [questions[i:i + 3] for i in range(0, len(questions), 3)] or [[]]
+    job_prep = {}
+    for index, job in enumerate(jobs):
+        key = _job_key(job.get("company", ""), job.get("job_title", ""))
+        job_prep[key] = {
+            "candidate_highlights": [
+                f"Module D matched this role for '{query}' in {location}.",
+                "This result was produced through the orchestrated master graph.",
+            ],
+            "resume_tips": tips,
+            "questions": grouped_questions[index] if index < len(grouped_questions) else questions[:3],
+            "cost_of_living": cost_map.get(key, {}),
+        }
 
-        normalized_questions = [
-            q.get("question", str(q)) if isinstance(q, dict) else str(q)
-            for q in questions
-        ]
-        return {"status": "success", "questions": normalized_questions, "is_live": True}
+    overall_message = {
+        "success": "Module D completed successfully with live results from Agent 1, Module A, Agent 2, and Agent 3.",
+        "partial": "Module D completed in partial/fallback mode. Some services returned demo or fallback content.",
+        "failed": "Module D could not complete the full workflow.",
+    }.get(overall_status, "Module D returned a response.")
 
-    mock = _mock_interview_response(job)
-    mock["is_live"] = False
-    mock["message"] = result.get("message", "Using demo questions.")
-    return mock
+    return {
+        "status": "success",
+        "jobs": jobs,
+        "job_prep": job_prep,
+        "service_statuses": service_statuses,
+        "overall_status": overall_status,
+        "message": overall_message,
+        "is_live": overall_status == "success",
+    }
 
 
 # ==============================================
@@ -167,37 +221,42 @@ def _mock_scout_response(num_results: int) -> dict:
     mock_jobs = [
         {
             "company": "Wayfair",
-            "job_title": "Data Science Intern",
+            "job_title": "Data Scientist",
+            "estimated_salary": "$92k-$108k",
             "core_skills": ["Python", "SQL", "Machine Learning"],
-            "summary": "Build ML models for product recommendation engine",
+            "summary": "Use applied ML and experimentation to improve marketplace recommendations.",
             "apply_link": "https://wayfair.com/careers",
         },
         {
             "company": "HubSpot",
-            "job_title": "AI Research Intern",
-            "core_skills": ["Python", "NLP", "TensorFlow"],
-            "summary": "Develop NLP features for marketing automation platform",
+            "job_title": "AI Product Analyst",
+            "estimated_salary": "$88k-$102k",
+            "core_skills": ["Python", "Analytics", "NLP"],
+            "summary": "Translate customer and product data into AI-powered workflow improvements.",
             "apply_link": "https://hubspot.com/careers",
         },
         {
             "company": "Toast",
-            "job_title": "Data Engineer Intern",
+            "job_title": "Data Engineer",
+            "estimated_salary": "$105k-$125k",
             "core_skills": ["Python", "Spark", "SQL", "AWS"],
-            "summary": "Build data pipelines for restaurant analytics platform",
+            "summary": "Build reliable data pipelines and reporting systems for restaurant operations.",
             "apply_link": "https://toast.com/careers",
         },
         {
             "company": "DraftKings",
-            "job_title": "ML Engineer Intern",
+            "job_title": "Machine Learning Engineer",
+            "estimated_salary": "$118k-$136k",
             "core_skills": ["Python", "PyTorch", "Docker"],
-            "summary": "Create real-time prediction models for sports analytics",
+            "summary": "Develop predictive models and deploy them into real-time product experiences.",
             "apply_link": "https://draftkings.com/careers",
         },
         {
             "company": "Akamai",
-            "job_title": "Data Analyst Intern",
+            "job_title": "Business Intelligence Analyst",
+            "estimated_salary": "$84k-$97k",
             "core_skills": ["SQL", "Tableau", "Python"],
-            "summary": "Analyze network performance data and build dashboards",
+            "summary": "Analyze operational data and create dashboards that drive business decisions.",
             "apply_link": "https://akamai.com/careers",
         },
     ]

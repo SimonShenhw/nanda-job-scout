@@ -1,6 +1,6 @@
 # nanda-job-scout
 
-An AI-powered job-search and interview-prep platform. Users search for internship listings, upload a resume, and receive tailored interview questions — all through a Streamlit dashboard backed by LangChain agents.
+An **agentic AI job discovery and interview-prep platform**. Users upload a resume, enter a target role and preferred location, and receive matched job openings, tailored interview questions, and salary-vs-cost-of-living insights through a Streamlit dashboard backed by FastAPI agents and LangGraph orchestration.
 
 ## Architecture
 
@@ -26,9 +26,9 @@ Each FastAPI agent also exposes a NANDA-compatible agent card at `/.well-known/a
 |---|---|
 | `agent1_scout/` | FastAPI service that searches for jobs via SerpAPI and structures results with Gemini. Runs on **port 8080**. |
 | `agent2_questions/` | FastAPI service that parses a resume and generates tailored interview questions per job. Runs on **port 8081**. |
-| `frontend_ui/` | Streamlit dashboard for searching jobs, uploading resumes, and practicing interviews. |
+| `frontend_ui/` | Streamlit dashboard where users upload a resume, choose a job target and location, review matched openings, and practice interviews. |
 | `module_a_vectordb/` | Builds a ChromaDB vector store from resume tips and serves semantic search via FastAPI. |
-| `module_d_langgraph/` | LangGraph orchestration service that combines job search, resume tips, and interview prep. Runs on **port 8082**. |
+| `module_d_langgraph/` | LangGraph orchestration service that combines job search, resume tips, interview prep, and downstream evaluation workflows. Runs on **port 8082**. |
 | `scripts/` | Utility scripts, including NANDA Index registration. |
 
 ## Prerequisites
@@ -116,7 +116,7 @@ curl -X POST "http://127.0.0.1:8080/api/v1/scout" \
   -H "Content-Type: application/json" \
   -d '{
     "location": "Greater Boston Area",
-    "keywords": "Data Scientist AI Intern",
+    "keywords": "Data Scientist",
     "num_results": 3
   }'
 ```

@@ -1,22 +1,22 @@
-# 🎯 Job Scout AI — Web UI (Module C)
+# 🤖 NANDA Job Scout — Frontend UI
 
-> Interactive Streamlit interface for the Job Scout AI multi-agent system.  
-> **Course:** AAI 6600| **University:** Northeastern University
+> Interactive Streamlit interface for the NANDA Job Scout multi-agent system.  
+> **Focus:** resume-based job matching, interview preparation, and affordability insights
 
 ---
 
 ## Overview
 
-This module provides the **user-facing web interface** for the Job Scout AI platform. It connects to the backend agents (Job Scout Agent, Interview Prep Module) and presents results through an intuitive, professional UI.
+This module provides the **user-facing web interface** for the NANDA Job Scout platform. It lets users upload a resume, specify a desired role and location, and interact with the backend agents through a clean UI.
 
 ### Features
 
-- **Job Search Dashboard** — Enter location, keywords, and number of results to discover relevant tech internships
-- **Resume Upload & Parsing** — Upload a PDF or TXT resume; the app extracts text automatically for personalized results
-- **Interactive Job Cards** — View job listings with skill badges, company info, summaries, and direct apply links
-- **AI Interview Prep Chat** — Select any job and generate tailored interview questions with a ChatGPT-like interface
+- **Job Match Dashboard** — Enter a preferred city, target role, and number of results to discover relevant openings
+- **Resume Upload & Parsing** — Upload a PDF or TXT resume; the app extracts text automatically and uses it for personalized matching
+- **Interactive Job Cards** — Review job listings with skill badges, estimated salary, summaries, direct apply links, and affordability scoring
+- **AI Interview Prep Chat** — Select any job and generate tailored interview questions from the resume and job context
 - **Graceful Error Handling** — Automatic retry logic, input validation, and demo mode fallback when backend is unavailable
-- **Connection Status Indicator** — Live server (green) vs demo mode (yellow) shown in sidebar
+- **Connection Status Indicator** — Live server (green) vs demo mode (yellow) shown in the sidebar
 
 ---
 

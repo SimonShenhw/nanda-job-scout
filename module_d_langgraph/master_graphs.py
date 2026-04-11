@@ -22,14 +22,17 @@ class GraphState(TypedDict):
     jobs: list
     tips: str
     questions: list
+    cost_of_living_analysis: list
 
     agent1_status: str
     module_a_status: str
     module_b_status: str
+    agent3_status: str
 
     agent1_error: Optional[str]
     module_a_error: Optional[str]
     module_b_error: Optional[str]
+    agent3_error: Optional[str]
 
 
 if os.getenv("DOCKER_ENV"):
@@ -41,8 +44,97 @@ else:
     MODULE_A_URL = "http://127.0.0.1:8000/api/v1/search"
     MODULE_B_URL = "http://127.0.0.1:8081/api/v1/prep"
 
+AGENT3_URL = os.getenv("AGENT3_URL", "").strip()
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 SERPAPI_API_KEY = os.getenv("SERPAPI_API_KEY", "")
+
+
+def _parse_salary_to_annual(salary_text: str | None):
+    if not salary_text:
+        return None
+
+    salary_lower = salary_text.lower()
+    if salary_lower == "not specified":
+        return None
+
+    values = [float(v.replace(",", "")) for v in __import__("re").findall(r"(\d[\d,]*(?:\.\d+)?)", salary_text)]
+    if not values:
+        return None
+
+    if "k" in salary_lower and max(values) <= 500:
+        values = [v * 1000 for v in values]
+
+    annual_salary = sum(values) / len(values)
+    if any(token in salary_lower for token in ["/hr", "per hour", "hour"]):
+        annual_salary *= 2080
+    elif annual_salary < 1000:
+        annual_salary *= 1000
+
+    return annual_salary
+
+
+def _cost_of_living_index(location_name: str | None) -> int:
+    location_lower = (location_name or "").lower()
+    reference = {
+        "new york": 95,
+        "san francisco": 100,
+        "seattle": 82,
+        "boston": 80,
+        "los angeles": 88,
+        "austin": 62,
+        "chicago": 70,
+        "atlanta": 58,
+        "dallas": 57,
+        "miami": 74,
+    }
+
+    for city, score in reference.items():
+        if city in location_lower:
+            return score
+
+    return 68
+
+
+def _local_cost_of_living_analysis(jobs: list, location_name: str | None) -> list:
+    analyses = []
+    cost_index = _cost_of_living_index(location_name)
+    baseline_cost = 38000 + (cost_index * 650)
+
+    for job in jobs:
+        salary_text = job.get("estimated_salary", "Not Specified")
+        annual_salary = _parse_salary_to_annual(salary_text)
+
+        if annual_salary is None:
+            score = None
+            label = "Salary unavailable"
+            recommendation = "No salary was provided, so this affordability estimate is limited."
+        else:
+            raw_score = int((annual_salary / baseline_cost) * 55)
+            score = max(1, min(100, raw_score))
+            if score >= 80:
+                label = "Excellent fit"
+            elif score >= 60:
+                label = "Solid fit"
+            elif score >= 40:
+                label = "Manageable"
+            else:
+                label = "Tight budget"
+            recommendation = f"{label} for {location_name or 'this location'} based on the estimated salary."
+
+        analyses.append(
+            {
+                "company": job.get("company", "Unknown Company"),
+                "job_title": job.get("job_title", "Unknown Role"),
+                "estimated_salary": salary_text,
+                "annual_salary_estimate": round(annual_salary, 2) if annual_salary is not None else None,
+                "cost_of_living_index": cost_index,
+                "affordability_score": score,
+                "label": label,
+                "recommendation": recommendation,
+            }
+        )
+
+    return analyses
 
 
 def _build_agent1_headers() -> dict:
@@ -89,7 +181,7 @@ def fetch_jobs(state: GraphState):
             AGENT1_URL,
             json=payload,
             headers=_build_agent1_headers(),
-            timeout=15,
+            timeout=60,
         )
         response.raise_for_status()
         jobs = response.json().get("jobs", [])
@@ -138,7 +230,7 @@ def fetch_resume_tips(state: GraphState):
     }
 
     try:
-        response = requests.post(MODULE_A_URL, json=payload, timeout=15)
+        response = requests.post(MODULE_A_URL, json=payload, timeout=30)
         response.raise_for_status()
         tips = response.json().get("result", "")
         return {
@@ -171,7 +263,7 @@ def generate_interview_questions(state: GraphState):
     }
 
     try:
-        response = requests.post(MODULE_B_URL, data=form_data, files=files, timeout=20)
+        response = requests.post(MODULE_B_URL, data=form_data, files=files, timeout=60)
 
         response.raise_for_status()
         data = response.json()
@@ -210,6 +302,44 @@ def generate_interview_questions(state: GraphState):
         }
 
 
+def evaluate_cost_of_living(state: GraphState):
+    jobs = state.get("jobs", [])
+    location_name = state.get("location", "Boston")
+
+    if AGENT3_URL:
+        try:
+            response = requests.post(
+                AGENT3_URL,
+                json={
+                    "location": location_name,
+                    "jobs": jobs,
+                },
+                timeout=45,
+            )
+            response.raise_for_status()
+            data = response.json()
+            analyses = data.get("results") or data.get("cost_of_living_analysis") or data.get("data") or []
+            if isinstance(analyses, list) and analyses:
+                return {
+                    "cost_of_living_analysis": analyses,
+                    "agent3_status": "success",
+                    "agent3_error": None,
+                }
+        except Exception as exc:
+            local_analysis = _local_cost_of_living_analysis(jobs, location_name)
+            return {
+                "cost_of_living_analysis": local_analysis,
+                "agent3_status": "fallback",
+                "agent3_error": f"Agent 3 call failed; local cost-of-living analysis used. {exc}",
+            }
+
+    return {
+        "cost_of_living_analysis": _local_cost_of_living_analysis(jobs, location_name),
+        "agent3_status": "success",
+        "agent3_error": None,
+    }
+
+
 def build_graph():
     logger.info("Building Module D master graph")
     builder = StateGraph(GraphState)
@@ -217,10 +347,12 @@ def build_graph():
     builder.add_node("fetch_jobs", fetch_jobs)
     builder.add_node("fetch_tips", fetch_resume_tips)
     builder.add_node("generate_questions", generate_interview_questions)
+    builder.add_node("evaluate_cost_of_living", evaluate_cost_of_living)
 
     builder.set_entry_point("fetch_jobs")
     builder.add_edge("fetch_jobs", "fetch_tips")
     builder.add_edge("fetch_tips", "generate_questions")
-    builder.set_finish_point("generate_questions")
+    builder.add_edge("generate_questions", "evaluate_cost_of_living")
+    builder.set_finish_point("evaluate_cost_of_living")
 
     return builder.compile()

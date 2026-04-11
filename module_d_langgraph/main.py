@@ -27,9 +27,11 @@ class ServiceStatus(BaseModel):
     agent1_status: str
     module_a_status: str
     module_b_status: str
+    agent3_status: str
     agent1_error: Optional[str] = None
     module_a_error: Optional[str] = None
     module_b_error: Optional[str] = None
+    agent3_error: Optional[str] = None
 
 
 class MasterGraphResponse(BaseModel):
@@ -48,12 +50,15 @@ def _run_master_graph(request: MasterGraphRequest) -> MasterGraphResponse:
         "jobs": [],
         "tips": "",
         "questions": [],
+        "cost_of_living_analysis": [],
         "agent1_status": "pending",
         "module_a_status": "pending",
         "module_b_status": "pending",
+        "agent3_status": "pending",
         "agent1_error": None,
         "module_a_error": None,
         "module_b_error": None,
+        "agent3_error": None,
     }
 
     result = graph.invoke(initial_state)
@@ -63,6 +68,7 @@ def _run_master_graph(request: MasterGraphRequest) -> MasterGraphResponse:
             result.get("agent1_status") == "success",
             result.get("module_a_status") == "success",
             result.get("module_b_status") == "success",
+            result.get("agent3_status") == "success",
         ]
     )
     required_ok = all(
@@ -70,6 +76,7 @@ def _run_master_graph(request: MasterGraphRequest) -> MasterGraphResponse:
             result.get("agent1_status") in ["success", "fallback"],
             result.get("module_a_status") in ["success", "fallback"],
             result.get("module_b_status") in ["success", "fallback"],
+            result.get("agent3_status") in ["success", "fallback"],
         ]
     )
 
@@ -86,9 +93,11 @@ def _run_master_graph(request: MasterGraphRequest) -> MasterGraphResponse:
             agent1_status=result.get("agent1_status", "unknown"),
             module_a_status=result.get("module_a_status", "unknown"),
             module_b_status=result.get("module_b_status", "unknown"),
+            agent3_status=result.get("agent3_status", "unknown"),
             agent1_error=result.get("agent1_error"),
             module_a_error=result.get("module_a_error"),
             module_b_error=result.get("module_b_error"),
+            agent3_error=result.get("agent3_error"),
         ),
         data={
             "query": result.get("query"),
@@ -96,6 +105,7 @@ def _run_master_graph(request: MasterGraphRequest) -> MasterGraphResponse:
             "jobs": result.get("jobs", []),
             "tips": result.get("tips", ""),
             "questions": result.get("questions", []),
+            "cost_of_living_analysis": result.get("cost_of_living_analysis", []),
         },
     )
 
