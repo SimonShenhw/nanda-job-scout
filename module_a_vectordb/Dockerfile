@@ -12,6 +12,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application source code to the container
 COPY . .
 
+# Build the ChromaDB vector database from resume_tips.txt
+RUN python build_db.py
+
 # Expose port for the FastAPI application
 EXPOSE 8000
 
