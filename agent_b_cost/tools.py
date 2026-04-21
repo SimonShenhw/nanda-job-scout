@@ -1,8 +1,5 @@
 """
-tools.py — Agent B 的底层工具函数
 tools.py — Low-level tool functions for Agent B
-
-包含三个工具：薪资解析、生活成本查询、默认薪资参考数据
 Contains three tools: salary parsing, cost of living lookup, default salary data
 """
 
@@ -11,39 +8,32 @@ import requests
 
 
 # ============================================================
-# 工具 1：薪资字符串解析器
 # Tool 1: Salary String Parser
-#
-# 把 Agent A 传来的薪资字符串转成月薪的最低值和最高值（美元）
+# weidong
 # Convert Agent A's salary string into monthly min and max values (USD)
 # ============================================================
 
 def parse_salary(estimated_salary: str) -> dict:
     """
-    支持三种格式 / Supports three formats:
-      - 时薪 Hourly:  "$30 - $35/hr"   → × 40 × 52 ÷ 12
-      - 年薪 Annual:  "$80k - $100k"   → ÷ 12
-      - 无数据 None:  "Not Specified"  → 返回 None，交给兜底逻辑处理
-                                         Returns None, handled by fallback
+    Supports three formats:
+      - Hourly:  "$30 - $35/hr"   → × 40 × 52 ÷ 12
+      - Annual:  "$80k - $100k"   → ÷ 12
+      - None:  "Not Specified"  → Returns None, handled by fallback
     """
 
-    # 如果没有薪资数据，直接返回 None
     # If no salary data, return None right away
     if not estimated_salary or "not specified" in estimated_salary.lower():
         return {"min": None, "max": None, "type": "not_specified", "note": "Salary not specified. Using market average."}
 
-    # 把字符串统一转成小写，方便匹配
     # Convert to lowercase for easier matching
     salary_str = estimated_salary.lower().strip()
 
-    # 用正则表达式提取所有数字（支持 30, 30.5, 80k, 80,000 这些格式）
     # Use regex to find all numbers (handles 30, 30.5, 80k, 80,000 formats)
     raw_numbers = re.findall(r'[\d,]+\.?\d*k?', salary_str)
 
-    # 把提取到的数字字符串转成真正的数字
     # Convert number strings into real numbers
     def to_number(s: str) -> float:
-        s = s.replace(',', '')          # 去掉千位逗号 / Remove comma separators
+        s = s.replace(',', '')          # Remove comma separators
         if s.endswith('k'):
             return float(s[:-1]) * 1000  # 80k → 80000
         return float(s)
@@ -53,12 +43,10 @@ def parse_salary(estimated_salary: str) -> dict:
     if not numbers:
         return {"min": None, "max": None, "type": "not_specified"}
 
-    # 只有一个数字时，最低值和最高值都用它
     # If only one number found, use it for both min and max
     val_min = numbers[0]
     val_max = numbers[1] if len(numbers) >= 2 else numbers[0]
 
-    # 判断是时薪还是年薪
     # Check if it is hourly or annual salary
     if "/hr" in salary_str or "per hour" in salary_str or "hourly" in salary_str:
         # 时薪换算月薪：× 40小时/周 × 52周/年 ÷ 12月
@@ -67,7 +55,6 @@ def parse_salary(estimated_salary: str) -> dict:
         monthly_max = round(val_max * 40 * 52 / 12)
         salary_type = "hourly"
     else:
-        # 年薪换算月薪：÷ 12
         # Annual to monthly: ÷ 12
         monthly_min = round(val_min / 12)
         monthly_max = round(val_max / 12)
@@ -237,16 +224,14 @@ def get_cost_of_living(city: str) -> dict:
                     }
 
     except Exception:
-        # API 请求失败时静默处理，使用内置数据
         # If API call fails, silently use built-in data
         pass
 
-    # 兜底逻辑：先查内置数据，找不到就换最近大城市
     # Fallback: check built-in data first, then switch to nearest big city
     if clean_city in CITY_COST_DATA:
         cost = CITY_COST_DATA[clean_city]
     else:
-        # 在兜底映射表里找最近的大城市
+        #  weidong
         # Find the nearest big city in the fallback map
         fallback_city = FALLBACK_CITIES.get(clean_city.lower(), FALLBACK_CITIES["default"])
         cost = CITY_COST_DATA.get(fallback_city, CITY_COST_DATA["Boston"])
