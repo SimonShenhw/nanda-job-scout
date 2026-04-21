@@ -1,4 +1,4 @@
-# Agent B — CostCompass (Cost of Living Calculator)
+# Agent 3 — CostCompass (Cost of Living Calculator)
 Developed by Wei Dong | AAI 6600 | Northeastern University
 
 ## What This Agent Does
@@ -25,3 +25,6 @@ finds job listings, Agent B adds two fields to each job card:
 ## How to Connect Agent B to This Project
 See integration guide: 
 https://github.com/appleorbit/AAI-6600_Team-project_NANDA_agent-b
+
+## Why Agent B became Agent 3
+During development, this agent was internally called Agent B — but it has been renamed to Agent 3 to align with the team's naming convention.
