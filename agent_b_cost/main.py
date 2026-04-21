@@ -1,14 +1,12 @@
 """
-main.py — Agent B 的 FastAPI 服务入口
 main.py — FastAPI service entry point for Agent B
 
-把 Agent B 的核心逻辑包装成 HTTP 接口，运行在端口 8083。
 Wraps Agent B's core logic into HTTP endpoints, running on port 8083.
 
-接口列表 / Endpoints:
-  POST /api/v1/evaluate  — 核心评估接口，供 Agent A 调用 / Main endpoint for Agent A
-  GET  /api/v1/cities    — 返回支持的城市列表 / Returns supported cities
-  GET  /health           — 健康检查 / Health check
+Endpoints:
+  POST /api/v1/evaluate  — Main endpoint for Agent A
+  GET  /api/v1/cities    — Returns supported cities
+  GET  /health           — Health check
 """
 
 from fastapi import FastAPI, HTTPException
@@ -19,7 +17,7 @@ from tools import CITY_COST_DATA
 
 
 # ============================================================
-# 初始化 FastAPI 应用
+# weidong
 # Initialize FastAPI app
 # ============================================================
 
@@ -35,7 +33,6 @@ app = FastAPI(
 
 
 # ============================================================
-# 数据格式定义（请求 & 响应）
 # Data Models (Request & Response)
 # ============================================================
 
@@ -151,7 +148,6 @@ async def evaluate(request: EvaluateRequest):
 
 
 # ============================================================
-# 接口 2：返回支持的城市列表
 # Endpoint 2: Return list of supported cities
 # ============================================================
 
@@ -173,7 +169,6 @@ async def get_cities():
 
 
 # ============================================================
-# 接口 3：健康检查
 # Endpoint 3: Health check
 # ============================================================
 
