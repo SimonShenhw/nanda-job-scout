@@ -182,4 +182,4 @@ The UI will be accessible at `http://<linode-ip>:8501`
 ## Author
 
 **Module C — Web UI (Streamlit)**  
-AAI 5025 — Northeastern University
+AAI — Northeastern University
